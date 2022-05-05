@@ -1,0 +1,149 @@
+# We can use parameters for plain string input
+# and output. 
+
+# Example input parameter:
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: hello
+spec:
+  entrypoint: main
+  arguments:
+    parameters:
+      - name: message
+        value: hello world
+  templates:
+  - name: main
+    inputs:
+      parameters:
+        - name: message
+    container:
+      image: docker/whalesay
+      command: [ cowsay ]
+      args: [ "{{inputs.parameters.message}}" ]
+    
+# Example output parameter:
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: hello
+spec:
+  entrypoint: main
+  templates:
+  - name: main
+    inputs:
+      parameters:
+        - name: message
+    container:
+      image: docker/whalesay
+      command: [ sh, -c ]
+      args: [ "echo -n hello world > /tmp/hello_world.txt" ]
+    outputs:
+      parameters:
+        - name: hello-param
+          valueFrom: 
+            path: /tmp/hello_world.txt
+
+# Input and outputs are defined in each container template.
+# In orchestrator templates we can reference output of a task
+# as input to another task.
+
+# Complete example is as below:
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: parameters-
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: generate-parameter
+            template: whalesay
+          - name: consume-parameter
+            template: print-message
+            dependencies:
+              - generate-parameter
+            arguments:
+              parameters:
+                - name: message
+                  value: "{{tasks.generate-parameter.outputs.parameters.hello-param}}"
+
+    - name: whalesay
+      container:
+        image: docker/whalesay
+        command: [ sh, -c ]
+        args: [ "echo -n hello world > /tmp/hello_world.txt" ]
+      outputs:
+        parameters:
+          - name: hello-param
+            valueFrom:
+              path: /tmp/hello_world.txt
+
+    - name: print-message
+      inputs:
+        parameters:
+          - name: message
+      container:
+        image: docker/whalesay
+        command: [ cowsay ]
+        args: [ "{{inputs.parameters.message}}" ]
+
+# Another IO method is using artifacts. An input artifact
+# is a file downloaded from storage and mounted to contanier
+# as a volume. An output artifact is a file created in the
+# container that is uploaded to storage.
+
+# Each task in a workflow can produce output artifacts by
+# using outputs key in the manifest and by providing a path
+# to find the file in the container and a name to refer to 
+# artifact. When the container is completed, file or directory
+# copied output of it compressed and stored in the storage.
+
+# To use an input artifact we should use inputs key in the 
+# manifest. Again we should provide a name to find the artifact
+# in the artifact storage and a path to create it in the container.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: artifacts-
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: generate-artifact
+            template: save-message
+          - name: consume-artifact
+            template: print-message
+            dependencies:
+              - generate-artifact
+            arguments:
+              artifacts:
+                - name: message
+                  from: "{{tasks.generate-artifact.outputs.artifacts.hello-art}}"
+
+    - name: save-message
+      container:
+        image: docker/whalesay
+        command: [ sh, -c ]
+        args: [ "cowsay hello world > /tmp/hello_world.txt" ]
+      outputs:
+        artifacts:
+          - name: hello-art
+            path: /tmp/hello_world.txt
+
+    - name: print-message
+      inputs:
+        artifacts:
+          - name: message
+            path: /tmp/message
+      container:
+        image: docker/whalesay
+        command: [ sh, -c ]
+        args: [ "cat /tmp/message" ]
