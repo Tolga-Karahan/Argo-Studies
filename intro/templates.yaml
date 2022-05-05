@@ -1,0 +1,117 @@
+# Each workflow consists of one or more templates and one of 
+# them specified as an entrypoint. Each template also has 
+# several types. Templates are divided into two groups. First 
+# group defines the work to be done and second group orchestrate
+# the work. First group includes container, container set, data,
+# resource and script types. Second group includes DAG, Steps 
+# and Suspend types. 
+
+# Container set allows to run multiple containers in a single pod.
+# Data template is used for getting data from storage.
+# Resource template is used for creating a Kubernetes resource and
+# waiting for it to meet a condition.
+# Script template is similar to container template but allows to 
+# run a script in the container.
+
+# In the example below, container template is used:
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: hello  
+spec:
+  entrypoint: main # the first template to run in the workflows        
+  templates:
+  - name: main           
+    container: # this is a container template
+      image: docker/whalesay # this image prints "hello world" to the console
+
+# We can also use template tags to insert data into workflow
+# at runtime: args: [ "hello {{workflow.name}}" ]. For further
+# info: https://argoproj.github.io/argo-workflows/variables/.
+
+# Another common template type is DAG. DAG consists of tasks.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: dag-
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: a
+            template: whalesay
+          - name: b
+            template: whalesay
+            dependencies:
+              - a
+          - name: c
+            template: whalesay
+            dependencies:
+              - a 
+              - b
+    - name: whalesay
+      container:
+        image: docker/whalesay
+        command: [ cowsay ]
+        args: [ "hello world" ]
+
+# By using withItems we can loop over a number of items and
+# create parallel tasks. To iterate over a sequence of numbers
+# we should use withSequence field:
+# withSequence
+#   count: 7
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: dag-
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: print-message
+            template: whalesay
+            arguments:
+              parameters:
+                - name: message
+                  value: "{{item}}"
+            withItems:
+              - "hello world"
+              - "goodbye world"
+
+# Other orchesration templates, steps template allows us to run
+# a series of steps in sequence and suspend template allows us
+# to automatically suspend a workflow while waiting for a manual
+# approval or while an external system does work.
+
+# If we need to perform a task after somethings has finished, we
+# can use exit handlers by onExit field.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: exit-handler-
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      dag:
+        tasks:
+          - name: a
+            template: whalesay
+            onExit: tidy-up
+
+    - name: whalesay
+      container:
+        image: docker/whalesay
+
+    - name: tidy-up
+      container:
+        image: docker/whalesay
+        command: [ cowsay ]
+        args: [ "tidy up!" ]
