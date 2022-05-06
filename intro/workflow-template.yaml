@@ -1,0 +1,42 @@
+# We can use workflow templates to persists them
+# on disk for further reusing.
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: hello
+spec:
+  entrypoint: main
+  templates:
+    - name: main
+      container:
+        image: docker/whalesay
+
+# We can also use cron workflows to run workflows
+# in a period.
+
+# By using workflow:
+---
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: hello
+spec:
+  schedule: "* * * * *"
+  workflowSpec:
+    entrypoint: main
+    templates:
+      - name: main
+        container:
+          image: docker/whalesay
+
+# By using workflow template:
+---
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: hello
+spec:
+  schedule: "* * * * *"
+  workflowSpec:
+    workflowTemplateRef:
+      name: hellocontrolplane        
