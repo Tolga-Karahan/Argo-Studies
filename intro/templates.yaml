@@ -84,12 +84,13 @@ spec:
               - "hello world"
               - "goodbye world"
 
-# Other orchesration templates, steps template allows us to run
-# a series of steps in sequence and suspend template allows us
-# to automatically suspend a workflow while waiting for a manual
-# approval or while an external system does work.
+# Other orchesration templates are steps template and suspend
+# template. Steps template allows us to run a series of steps 
+# in sequence and suspend template allows us to automatically 
+# suspend a workflow while waiting for a manual approval or 
+# while an external system does work.
 
-# If we need to perform a task after somethings has finished, we
+# If we need to perform a task after something has finished, we
 # can use exit handlers by onExit field.
 ---
 apiVersion: argoproj.io/v1alpha1

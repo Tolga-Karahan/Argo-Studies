@@ -1,5 +1,5 @@
 # We can use parameters for plain string input
-# and output. 
+# and output.
 
 # Example input parameter:
 apiVersion: argoproj.io/v1alpha1
@@ -101,7 +101,7 @@ spec:
 # using outputs key in the manifest and by providing a path
 # to find the file in the container and a name to refer to 
 # artifact. When the container is completed, file or directory
-# copied output of it compressed and stored in the storage.
+# copied out of it, compressed and stored in the storage.
 
 # To use an input artifact we should use inputs key in the 
 # manifest. Again we should provide a name to find the artifact
